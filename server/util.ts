@@ -1,22 +1,19 @@
 import path from "path";
 import fs from "fs";
+
 // audio data is sent as uncompressed raw PCM (L16) data with a 16kHz sample rate and mono channels. base64-encoded binary format
 export const bufferToWaveFile = (buffer: Buffer<ArrayBuffer>) => {
   const wavePath = path.join(process.cwd(), `audio_${Date.now()}.wav`);
-
   // Decode base64 to binary buffer
   const pcmData = buffer;
-
   // Create WAV header
   const header = Buffer.alloc(44);
   const dataSize = pcmData.length;
   const fileSize = dataSize + 36;
-
   // RIFF chunk descriptor
   header.write("RIFF", 0);
   header.writeUInt32LE(fileSize, 4);
   header.write("WAVE", 8);
-
   // fmt sub-chunk
   header.write("fmt ", 12);
   header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
@@ -26,27 +23,21 @@ export const bufferToWaveFile = (buffer: Buffer<ArrayBuffer>) => {
   header.writeUInt32LE(32000, 28); // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
   header.writeUInt16LE(2, 32); // BlockAlign (NumChannels * BitsPerSample/8)
   header.writeUInt16LE(16, 34); // BitsPerSample (16 bits)
-
   // data sub-chunk
   header.write("data", 36);
   header.writeUInt32LE(dataSize, 40);
-
   // Combine header and audio data
   const wavFile = Buffer.concat([header, pcmData]);
-
   // Write to file
   fs.writeFileSync(wavePath, wavFile);
-
   return wavePath;
 };
 
 export const formatTranscript = (transcript: SampleTranscript) => {
   let result = "";
-
   for (let i = 0; i < transcript.length; i++) {
     let current = transcript[i].speech.trim();
     if (!current) continue;
-
     // Handle apostrophes as part of the surrounding word (I + ' + m => I'm, That + 's => That's)
     if (current === "'" || current.startsWith("'")) {
       // attach apostrophe (and anything after it) directly to previous character (remove trailing space)
@@ -54,63 +45,50 @@ export const formatTranscript = (transcript: SampleTranscript) => {
       result += current;
       continue;
     }
-
     // Collapse noisy "[ ina ud ible ]" / "[ BL ANK _ AUD IO ]" style tokens into a single bracketed tag
     if (current === "[") {
       // ensure a space before opening bracket if needed
       if (result && !result.endsWith(" ")) {
         result += " ";
       }
-
       let tagContent = "[";
       let closed = false;
-
       // consume tokens until we hit a closing bracket
       while (++i < transcript.length) {
         let inner = transcript[i].speech.trim();
         if (!inner) continue;
-
         // if this piece already contains a closing bracket, strip inner spaces then break
         if (inner.includes("]")) {
           tagContent += inner.replace(/\s+/g, "");
           closed = true;
           break;
         }
-
         // otherwise, just append without spaces
         tagContent += inner.replace(/\s+/g, "");
       }
-
       if (!closed) {
         tagContent += "]";
       }
-
       result += tagContent;
       continue;
     }
-
     const isPunctuationOnly = /^[.,!?;:()]+$/.test(current);
-
     if (isPunctuationOnly) {
       // No space before punctuation
       result = result.replace(/ $/, "");
       result += current;
-
       // Space after sentence / clause punctuation
       if (/[.!?]/.test(current) || current === ",") {
         result += " ";
       }
       continue;
     }
-
     // Regular word/token
     if (result && !result.endsWith(" ")) {
       result += " ";
     }
-
     result += current;
   }
-
   return result;
 };
 

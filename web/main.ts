@@ -21,7 +21,7 @@ const RTMSClient = client.getRealTimeMediaStreamsClient() as typeof RealTimeMedi
 const startCall = async () => {
   const token = generateSignature(sessionName);
   client.on("peer-video-state-change", renderVideo);
-  client.on("real-time-media-streams-status-change", () => updateUI);
+  client.on("real-time-media-streams-status-change", updateUI);
   await client.join(sessionName, token, username);
   const mediaStream = client.getMediaStream();
   await mediaStream.startAudio({ mute: false });

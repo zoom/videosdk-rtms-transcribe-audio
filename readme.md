@@ -4,6 +4,8 @@ Use of this sample app is subject to our [Terms of Use](https://explore.zoom.us/
 
 The [Zoom Video SDK for Web](https://developers.zoom.us/docs/video-sdk/web/) enables you to build custom video experiences on a webpage with Zoom's core technology. This demo showcases how to use [Video SDK RTMS Streams](https://developers.zoom.us/docs/rtms/video-sdk/) to receive real-time audio from Zoom on your backend server. The server then runs a Whisper model for transcription and outputs the result to a file.
 
+You can also use the [RTMS SDK](https://github.com/zoom/rtms) which makes this much simpler. The [SDK branch](https://github.com/zoom/videosdk-rtms-transcribe-audio/tree/sdk) contains the code for this project built with the RTMS SDK.
+
 ## Installation
 
 To get started, clone the repo:
@@ -15,7 +17,7 @@ To get started, clone the repo:
 
 1. Install the dependencies:
 
-   `bun install # or npm install`
+`bun install # or npm install`
 
 2. Create a `.env` file in the root directory of the project, you can do this by copying the `.env.example` file (`cp .env.example .env`) and replacing the values with your own. The `.env` file should look like this, with your own Zoom Video SDK Credentials:
 
@@ -27,7 +29,7 @@ To get started, clone the repo:
 
 3. Run the app:
 
-   `bun dev` or `npm run dev`
+`bun dev` or `npm run dev`
 
 ## Usage
 
