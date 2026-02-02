@@ -15,19 +15,17 @@ To get started, clone the repo:
 
 1. Install the dependencies:
 
-   `bun install # or npm install`
+`bun install # or npm install`
 
 2. Create a `.env` file in the root directory of the project, you can do this by copying the `.env.example` file (`cp .env.example .env`) and replacing the values with your own. The `.env` file should look like this, with your own Zoom Video SDK Credentials:
-
-   ```
-   VITE_SDK_KEY=abc123XXXXXXXXXX
-   VITE_SDK_SECRET=abc123XXXXXXXXXX
-   ZOOM_SECRET_TOKEN=abc123XXXXXXXXXX
-   ```
+```
+VITE_SDK_KEY=abc123XXXXXXXXXX
+VITE_SDK_SECRET=abc123XXXXXXXXXX
+```
 
 3. Run the app:
 
-   `bun dev` or `npm run dev`
+`bun dev` or `npm run dev`
 
 ## Usage
 
