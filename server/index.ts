@@ -1,13 +1,12 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import http from "http";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import WebSocket from "ws";
 import { whisper } from "whisper-node";
+import { bufferToWaveFile, formatTranscript, generateSignatureForWebApp, type SampleAudioPacket, type SampleTranscript } from "./util.ts";
 import express from "express";
-import { bufferToWaveFile, formatTranscript, type SampleAudioPacket, type SampleTranscript } from "./util";
 
 const __filename = path.resolve(fileURLToPath(import.meta.url));
 const __dirname = path.dirname(__filename);
@@ -17,15 +16,21 @@ dotenv.config({
   path: path.resolve(__dirname, "..", ".env"),
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.VITE_PORT || 3000;
 const ZoomSecretToken = process.env.ZOOM_SECRET_TOKEN as string;
-const ZoomClientId = process.env.VITE_SDK_KEY as string;
-const ZoomClientSecret = process.env.VITE_SDK_SECRET as string;
+const ZoomClientId = process.env.ZM_RTMS_CLIENT as string;
+const ZoomClientSecret = process.env.ZM_RTMS_SECRET as string;
 let transcriptBuffer = Buffer.alloc(0);
 
 const app = express();
 app.use(express.json());
-
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Methods", "*");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
 app.get("/", (_req, res) => {
   console.log("Root endpoint hit");
   res.send("RTMS for Video SDK Sample Server Running.");
@@ -223,8 +228,13 @@ if (!ZoomClientId || !ZoomClientSecret || !ZoomSecretToken) {
   process.exit(1);
 }
 
-const server = http.createServer(app);
-
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+app.post("/jwt", (req, res) => {
+  const { sessionName } = req.body;
+  if (!sessionName) {
+    res.status(400).json({ error: "Session name is required" });
+    return;
+  }
+  res.json({ jwt: generateSignatureForWebApp(sessionName, ZoomClientId, ZoomClientSecret) });
 });
+
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
