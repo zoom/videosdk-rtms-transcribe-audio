@@ -5,21 +5,17 @@ import ZoomVideo, {
   VideoQuality,
   RealTimeMediaStreamsClient,
 } from "@zoom/videosdk";
-import { generateSignature } from "./utils";
 import "./style.css";
 
-const videoContainer = document.querySelector(
-  "video-player-container",
-) as HTMLElement;
-const sessionName = "test";
+const videoContainer = document.querySelector("video-player-container") as HTMLElement;
+const sessionName = "TestOne";
 const username = `User-${String(new Date().getTime()).slice(6)}`;
 
 const client = ZoomVideo.createClient();
 await client.init("en-US", "Global", { patchJsMedia: false });
 const RTMSClient = client.getRealTimeMediaStreamsClient() as typeof RealTimeMediaStreamsClient;
 
-const startCall = async () => {
-  const token = generateSignature(sessionName);
+const startCall = async (token: string) => {
   client.on("peer-video-state-change", renderVideo);
   client.on("real-time-media-streams-status-change", updateUI);
   await client.join(sessionName, token, username);
@@ -85,9 +81,13 @@ const stopRTMSBtn = document.getElementById("stop-rtms-btn") as HTMLButtonElemen
 const statusContainer = document.getElementById("status-container") as HTMLDivElement;
 
 startBtn.addEventListener("click", async () => {
+  const token = await getToken();
+  if (!token) {
+    return;
+  }
   startBtn.innerHTML = "Loading...";
   startBtn.disabled = true;
-  await startCall();
+  await startCall(token);
   startBtn.innerHTML = "Connected";
   startBtn.style.display = "none";
   stopBtn.style.display = "block";
@@ -120,3 +120,18 @@ const updateUI = () => {
     stopRTMSBtn.style.display = "none";
   }
 };
+
+const getToken = async () => {
+  const token = await fetch('http://localhost:3000/jwt', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sessionName: sessionName }),
+  }).then(res => res.json()).then(data => data.jwt);
+  if (!token) {
+    alert("Failed to get token");
+    return;
+  }
+  return token;
+}
