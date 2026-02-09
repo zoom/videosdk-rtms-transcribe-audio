@@ -1,0 +1,23 @@
+server/index.ts
+  3abe62d7537045ed 6,62,75,77-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.42",
+  "base_commit_sha": "efa0ee1502069a486f5fb1062727125a36fc8e48",
+  "prompts": {
+    "3abe62d7537045ed": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c1ae2ba7-5667-4a56-8525-bd441a7e6717",
+        "model": "default"
+      },
+      "human_author": "ekaansh <ekaansh68@gmail.com>",
+      "messages": [],
+      "total_additions": 15,
+      "total_deletions": 1,
+      "accepted_lines": 5,
+      "overriden_lines": 5
+    }
+  }
+}
