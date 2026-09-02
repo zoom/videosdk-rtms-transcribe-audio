@@ -5,7 +5,7 @@
     "": {
       "name": "zoom-vite",
       "dependencies": {
-        "@zoom/videosdk": "^2.4.5",
+        "@zoom/videosdk": "^2.5.0",
         "crypto": "^1.0.1",
         "dotenv": "^17.4.2",
         "express": "^4.22.2",
@@ -174,7 +174,7 @@
 
     "@types/ws": ["@types/ws@8.18.1", "", { "dependencies": { "@types/node": "*" } }, "sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg=="],
 
-    "@zoom/videosdk": ["@zoom/videosdk@2.4.5", "", {}, "sha512-C73+Fe6vAG6lw9y0jd50R3bBbLn5hrPMINC5XsZwwvBJ4L3l/AOXyBXBAgXCz8squejLaoTPldqOeI2QIsoLtw=="],
+    "@zoom/videosdk": ["@zoom/videosdk@2.5.0", "", { "bin": { "videosdk": "bin/videosdk-cli.cjs" } }, "sha512-BL3vNdrjwdV/hYwhvRECQlKlwv4Pl8IX2+yNxUZwVmKL1fsLT8n4Zu20Szw4u/C612LAHpgCMaFBoLlUr3/ePw=="],
 
     "accepts": ["accepts@1.3.8", "", { "dependencies": { "mime-types": "~2.1.34", "negotiator": "0.6.3" } }, "sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw=="],
 

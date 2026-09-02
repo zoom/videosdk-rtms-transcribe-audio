@@ -21,7 +21,7 @@
     "vite": "^7.3.5"
   },
   "dependencies": {
-    "@zoom/videosdk": "^2.4.5",
+    "@zoom/videosdk": "^2.5.0",
     "crypto": "^1.0.1",
     "dotenv": "^17.4.2",
     "express": "^4.22.2",
