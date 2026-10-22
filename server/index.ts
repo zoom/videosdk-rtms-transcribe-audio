@@ -4,8 +4,8 @@ import { fileURLToPath } from "url";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import WebSocket from "ws";
-import { whisper } from "whisper-node";
-import { bufferToWaveFile, formatTranscript, generateSignatureForWebApp, type SampleAudioPacket, type SampleTranscript } from "./util.ts";
+import { ScribeSession } from "./scribe.ts";
+import { generateSignatureForWebApp, type SampleAudioPacket } from "./util.ts";
 import express from "express";
 
 const __filename = path.resolve(fileURLToPath(import.meta.url));
@@ -20,7 +20,23 @@ const PORT = process.env.VITE_PORT || 3000;
 const ZoomSecretToken = process.env.ZOOM_SECRET_TOKEN as string;
 const ZoomClientId = process.env.ZM_RTMS_CLIENT as string;
 const ZoomClientSecret = process.env.ZM_RTMS_SECRET as string;
-let transcriptBuffer = Buffer.alloc(0);
+const ScribeToken = process.env.ZOOM_ACCESS_TOKEN as string;
+type Stream = {
+  sessionId: string;
+  signaling: WebSocket;
+  media?: WebSocket;
+  scribe?: ScribeSession;
+};
+const streams = new Map<string, Stream>();
+
+function stopStream(streamId: string, expected?: Stream) {
+  const stream = streams.get(streamId);
+  if (!stream || (expected && stream !== expected)) return;
+  streams.delete(streamId);
+  stream.media?.close();
+  stream.signaling.close();
+  stream.scribe?.close();
+}
 
 const app = express();
 app.use(express.json());
@@ -56,6 +72,9 @@ app.post("/webhook", (req, res) => {
   } else if (event === "session.rtms_stopped") {
     const { session_id } = payload;
     console.log(`Stopping RTMS for Video session ${session_id}`);
+    for (const [id, stream] of streams) {
+      if (stream.sessionId === session_id) stopStream(id);
+    }
   } else {
     console.log("Unknown event:", event);
   }
@@ -77,6 +96,9 @@ function connectToSignalingWebSocket(
   const signalingWs = new WebSocket(serverUrls, [], {
     rejectUnauthorized: false,
   });
+  stopStream(rtmsStreamId);
+  const stream: Stream = { sessionId: session_id, signaling: signalingWs };
+  streams.set(rtmsStreamId, stream);
   signalingWs.on("open", () => {
     try {
       const handshakeMsg = {
@@ -109,33 +131,58 @@ function connectToSignalingWebSocket(
     } else if (msg.msg_type === 2) {
       if (msg.status_code === 0) {
         const mediaUrl = msg.media_server?.server_urls?.audio;
-        connectToMediaWebSocket(
+        void connectToMediaWebSocket(
           mediaUrl,
           session_id,
           rtmsStreamId,
           signalingWs,
-        );
+          stream,
+        ).catch((error) => {
+          console.error("Unable to start Scribe transcription:", error);
+          stopStream(rtmsStreamId, stream);
+        });
       }
     }
   });
 
   signalingWs.on("error", (error) => {
     console.error("Signaling WebSocket error:", error);
+    stopStream(rtmsStreamId, stream);
   });
 
   signalingWs.on("close", (code, reason) => {
     console.log("Signaling WebSocket closed:", code, reason);
+    stopStream(rtmsStreamId, stream);
   });
 }
 
-function connectToMediaWebSocket(
+async function connectToMediaWebSocket(
   mediaUrl: string,
   session_id: string,
   rtmsStreamId: string,
   signalingSocket: WebSocket,
+  stream: Stream,
 ) {
+  if (stream.scribe) return;
+  const scribe = new ScribeSession({
+    token: ScribeToken,
+    onTranscript: (text) => {
+      console.log(`[Scribe ${session_id}] ${text}`);
+      fs.appendFileSync(path.join(__dirname, "transcript.txt"), `${text}\n`);
+    },
+    onFailure: () => stopStream(rtmsStreamId, stream),
+  });
+  stream.scribe = scribe;
+  await scribe.ready;
+  if (streams.get(rtmsStreamId) !== stream) return;
   const mediaWs = new WebSocket(mediaUrl, [], { rejectUnauthorized: false });
 
+  stream.media = mediaWs;
+  mediaWs.on("error", (error) => {
+    console.error("Media WebSocket error:", error);
+    stopStream(rtmsStreamId, stream);
+  });
+  mediaWs.on("close", () => stopStream(rtmsStreamId, stream));
   mediaWs.on("open", () => {
     const handshakeMsg = {
       msg_type: 3, // DATA_HAND_SHAKE_REQ
@@ -153,7 +200,7 @@ function connectToMediaWebSocket(
           channel: 1, //mono
           codec: 1, //L16
           data_opt: 1, //AUDIO_MIXED_STREAM
-          send_rate: 1000, //in Milliseconds
+          send_rate: 100, //in Milliseconds
         },
       },
     };
@@ -163,10 +210,7 @@ function connectToMediaWebSocket(
       if (msg.msg_type === 14) {
         // AUDIO
         if (msg.content?.data) {
-          const { data: audioData } =
-            msg.content as SampleAudioPacket["content"];
-          const buffer = Buffer.from(audioData, "base64");
-          void transcribeAudio(buffer);
+          scribe.sendAudio(msg.content as SampleAudioPacket["content"]);
         }
       } else if (msg.msg_type === 4 && msg.status_code === 0) {
         signalingSocket.send(
@@ -189,42 +233,12 @@ function connectToMediaWebSocket(
   });
 }
 
-const getTranscriptFromBuffer = async (buffer: Buffer<ArrayBuffer>) => {
-  const bufferCopy = Buffer.from(buffer);
-  const wavePath = await bufferToWaveFile(bufferCopy);
-  const transcript: SampleTranscript = await whisper(wavePath, {
-    modelName: "base.en",
-  });
-  console.log("*** Transcript ***\n", transcript);
-  // delete file after transcribing
-  fs.unlinkSync(wavePath);
-  appendTranscriptToFile(transcript);
-  console.log(transcript);
-};
-
-const appendTranscriptToFile = (transcript: SampleTranscript) => {
-  if (!fs.existsSync(path.join(process.cwd(), "transcript.txt"))) {
-    fs.writeFileSync(path.join(process.cwd(), "transcript.txt"), "");
-  }
-  fs.appendFileSync(
-    path.join(__dirname, "transcript.txt"),
-    formatTranscript(transcript),
-  );
-};
-
-const transcribeAudio = async (buffer: Buffer<ArrayBuffer>) => {
-  transcriptBuffer = Buffer.concat([transcriptBuffer, buffer]);
-  if (transcriptBuffer.length >= 16000 * 10) {
-    void getTranscriptFromBuffer(transcriptBuffer);
-    transcriptBuffer = Buffer.alloc(0);
-  }
-};
-
-if (!ZoomClientId || !ZoomClientSecret || !ZoomSecretToken) {
+if (!ZoomClientId || !ZoomClientSecret || !ZoomSecretToken || !ScribeToken) {
   console.error("Missing required environment variables:");
-  if (!ZoomClientId) console.error("  - VITE_SDK_KEY");
-  if (!ZoomClientSecret) console.error("  - VITE_SDK_SECRET");
+  if (!ZoomClientId) console.error("  - ZM_RTMS_CLIENT");
+  if (!ZoomClientSecret) console.error("  - ZM_RTMS_SECRET");
   if (!ZoomSecretToken) console.error("  - ZOOM_SECRET_TOKEN");
+  if (!ScribeToken) console.error("  - ZOOM_ACCESS_TOKEN");
   process.exit(1);
 }
 
