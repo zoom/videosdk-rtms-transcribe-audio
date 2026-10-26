@@ -7,6 +7,7 @@ import ZoomVideo, {
 } from "@zoom/videosdk";
 import "./style.css";
 
+const PORT = import.meta.env.VITE_PORT || 3000;
 const videoContainer = document.querySelector("video-player-container") as HTMLElement;
 const sessionName = "TestOne";
 const username = `User-${String(new Date().getTime()).slice(6)}`;
@@ -122,7 +123,7 @@ const updateUI = () => {
 };
 
 const getToken = async () => {
-  const token = await fetch('http://localhost:3000/jwt', {
+  const token = await fetch(`http://localhost:${PORT}/jwt`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

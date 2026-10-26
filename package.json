@@ -6,7 +6,8 @@
   "scripts": {
     "web": "vite",
     "server": "tsx server/index.ts",
-    "dev": "concurrently -p \"[{name}]\" -n \"web,server\" -c \"cyan,green\" \"npm run web\"  \"npm run server\" "
+    "dev": "concurrently -p \"[{name}]\" -n \"web,server\" -c \"cyan,green\" \"npm run web\"  \"npm run server\" ",
+    "test": "tsx --test server/*.test.ts"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
@@ -29,7 +30,6 @@
     "jsrsasign": "^11.1.0",
     "path": "^0.12.7",
     "url": "^0.11.4",
-    "whisper-node": "^1.1.1",
     "ws": "^8.19.0"
   },
   "trustedDependencies": [
